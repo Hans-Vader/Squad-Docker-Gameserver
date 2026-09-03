@@ -23,12 +23,13 @@ then
 					+app_update "${STEAM_BETA_APP}" \
 					-beta "${STEAM_BETA_BRANCH}" \
 					-betapassword "${STEAM_BETA_PASSWORD}" \
+					validate \
 					+quit
 else
 	echo "Loading Steam Release Branch"
 	run_steamcmd +force_install_dir "${STEAMAPPDIR}" \
 					+login anonymous \
-					+app_update "${STEAMAPPID}" \
+					+app_update "${STEAMAPPID}" validate \
 					+quit
 fi || { echo "steamcmd failed to update Squad after 3 attempts, aborting" >&2; exit 1; }
 
@@ -37,14 +38,16 @@ sed -i -e 's/Port=21114/'"Port=${RCONPORT}"'/g' "${STEAMAPPDIR}/SquadGame/Server
 
 if [[ -n "${SERVER_NAME}" ]]; then
 	echo "Setting server name in Server.cfg"
-	sed -i -e "s/^ServerName=.*/ServerName=\"${SERVER_NAME}\"/" "${STEAMAPPDIR}/SquadGame/ServerConfig/Server.cfg"
+	# ponytail: escape the three sed replacement metachars - names like "MyClan | 24/7 Fools Road" are normal
+	ESCAPED_NAME=${SERVER_NAME//\\/\\\\}; ESCAPED_NAME=${ESCAPED_NAME//&/\\&}; ESCAPED_NAME=${ESCAPED_NAME//\//\\/}
+	sed -i -e "s/^ServerName=.*/ServerName=\"${ESCAPED_NAME}\"/" "${STEAMAPPDIR}/SquadGame/ServerConfig/Server.cfg"
 fi
 
 echo "Clearing Mods..."
 # Clear all workshop mods:
 # find all folders / files in mods folder which are numeric only;
 # remove the workshop mods
-find "${MODPATH}"/* -maxdepth 0 -regextype posix-egrep -regex ".*/[[:digit:]]+" | xargs -0 -d"\n" rm -R 2>/dev/null
+find "${MODPATH}" -mindepth 1 -maxdepth 1 -regextype posix-egrep -regex ".*/[[:digit:]]+" -exec rm -R {} + 2>/dev/null
 
 # Install mods (if defined)
 declare -a MODS="${MODS}"

@@ -1,0 +1,29 @@
+services:
+  squad:
+    build:
+      context: ./trixie      # bullseye variant: context: ./bullseye AND image: squad:bullseye
+      args:                  # only needed if your host account is not 1000:1000, see .env.example
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    image: squad:trixie
+    container_name: squad
+    restart: unless-stopped
+    network_mode: "host"
+    # Pin to dedicated cores (host specific, check `lscpu -e`): take SMT siblings as a pair,
+    # skip efficiency cores (lower MAXMHZ). 4-5 physical cores is the sweet spot — UE caps
+    # its worker pool at 4. Nonexistent CPU ids break container start.
+    # cpuset: "0-9"
+    volumes:
+      # Create it yourself first (mkdir -p squad-data), or dockerd makes it root-owned
+      # and the container cannot write. Ownership must match PUID/PGID from .env.
+      - ./squad-data/:/home/steam/squad-dedicated/
+    environment:                                        # defaults mirror the Dockerfile, .env overrides them
+      - MULTIHOME=${MULTIHOME:-}
+      - SERVER_NAME=${SERVER_NAME:-Squad Dedicated Server}
+      - PORT=${PORT:-7787}
+      - QUERYPORT=${QUERYPORT:-27165}
+      - RCONPORT=${RCONPORT:-21114}
+      - BEACONPORT=${BEACONPORT:-15000}
+      - FIXEDMAXPLAYERS=${FIXEDMAXPLAYERS:-100}
+      - FIXEDMAXTICKRATE=${FIXEDMAXTICKRATE:-64}
+      - MODS=${MODS:-()}
