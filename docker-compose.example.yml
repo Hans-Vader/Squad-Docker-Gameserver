@@ -1,11 +1,13 @@
 services:
   squad:
     build:
-      context: ./trixie      # bullseye variant: context: ./bullseye AND image: squad:bullseye
+      context: ./trixie      # bullseye variant: context: ./bullseye AND image: squad:bullseye-uid...
       args:                  # only needed if your host account is not 1000:1000, see .env.example
         PUID: ${PUID:-1000}
         PGID: ${PGID:-1000}
-    image: squad:trixie
+    # ponytail: the uid is baked in at build time, so it belongs in the tag - otherwise
+    # changing PUID in .env and running `up -d` silently restarts the old-uid image
+    image: squad:trixie-uid${PUID:-1000}
     container_name: squad
     restart: unless-stopped
     network_mode: "host"

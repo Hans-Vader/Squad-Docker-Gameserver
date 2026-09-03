@@ -20,16 +20,17 @@ then
 	echo "Loading Steam Beta Branch"
 	run_steamcmd +force_install_dir "${STEAMAPPDIR}" \
 					+login anonymous \
+					+app_info_update 1 \
 					+app_update "${STEAM_BETA_APP}" \
 					-beta "${STEAM_BETA_BRANCH}" \
 					-betapassword "${STEAM_BETA_PASSWORD}" \
-					validate \
 					+quit
 else
 	echo "Loading Steam Release Branch"
 	run_steamcmd +force_install_dir "${STEAMAPPDIR}" \
 					+login anonymous \
-					+app_update "${STEAMAPPID}" validate \
+					+app_info_update 1 \
+					+app_update "${STEAMAPPID}" \
 					+quit
 fi || { echo "steamcmd failed to update Squad after 3 attempts, aborting" >&2; exit 1; }
 
@@ -38,19 +39,23 @@ sed -i -e 's/Port=21114/'"Port=${RCONPORT}"'/g' "${STEAMAPPDIR}/SquadGame/Server
 
 if [[ -n "${SERVER_NAME}" ]]; then
 	echo "Setting server name in Server.cfg"
-	# ponytail: escape the three sed replacement metachars - names like "MyClan | 24/7 Fools Road" are normal
-	ESCAPED_NAME=${SERVER_NAME//\\/\\\\}; ESCAPED_NAME=${ESCAPED_NAME//&/\\&}; ESCAPED_NAME=${ESCAPED_NAME//\//\\/}
-	sed -i -e "s/^ServerName=.*/ServerName=\"${ESCAPED_NAME}\"/" "${STEAMAPPDIR}/SquadGame/ServerConfig/Server.cfg"
+	SERVER_NAME=${SERVER_NAME//[$'\n\r"']/}
+	SERVER_CFG="${STEAMAPPDIR}/SquadGame/ServerConfig/Server.cfg"
+	while IFS= read -r LINE || [[ -n "${LINE}" ]]; do
+		[[ "${LINE}" == ServerName=* ]] && LINE="ServerName=\"${SERVER_NAME}\""
+		printf '%s\n' "${LINE}"
+	done < "${SERVER_CFG}" > "${SERVER_CFG}.tmp" && mv "${SERVER_CFG}.tmp" "${SERVER_CFG}"
 fi
 
 echo "Clearing Mods..."
 # Clear all workshop mods:
 # find all folders / files in mods folder which are numeric only;
 # remove the workshop mods
-find "${MODPATH}" -mindepth 1 -maxdepth 1 -regextype posix-egrep -regex ".*/[[:digit:]]+" -exec rm -R {} + 2>/dev/null
+mkdir -p "${MODPATH}"
+find "${MODPATH}" -mindepth 1 -maxdepth 1 -regextype posix-egrep -regex ".*/[[:digit:]]+" -exec rm -R {} +
 
 # Install mods (if defined)
-declare -a MODS="${MODS}"
+declare -a MODS="${MODS:-()}"
 if (( ${#MODS[@]} ))
 then
 	echo "Installing Mods..."
@@ -60,7 +65,8 @@ then
 			|| echo "Warning: failed to download mod '${MODID}', continuing..." >&2
 
 		echo -e "\n> Link mod content '${MODID}'"
-		ln -s "${STEAMAPPDIR}/steamapps/workshop/content/${WORKSHOPID}/${MODID}" "${MODPATH}/${MODID}"
+		ln -s "${STEAMAPPDIR}/steamapps/workshop/content/${WORKSHOPID}/${MODID}" "${MODPATH}/${MODID}" \
+			|| echo "Warning: failed to link mod '${MODID}', it will not load" >&2
 	done
 fi
 
@@ -70,7 +76,7 @@ else
 	MULTIHOME_PARAM=""
 fi
 
-bash "${STEAMAPPDIR}/SquadGameServer.sh" \
+exec bash "${STEAMAPPDIR}/SquadGameServer.sh" \
 			"${MULTIHOME_PARAM}" \
 			Port="${PORT}" \
 			QueryPort="${QUERYPORT}" \

@@ -29,7 +29,7 @@ ENV MODS "()"
 
 COPY --chown=${USER}:${USER} etc/entry.sh ${HOMEDIR}
 
-RUN mkdir -p "${STEAMAPPDIR}"
+RUN chmod 755 "${HOMEDIR}/entry.sh" && mkdir -p "${STEAMAPPDIR}"
 
 ENV PORT=7787 \
 	QUERYPORT=27165 \
@@ -38,9 +38,6 @@ ENV PORT=7787 \
 	FIXEDMAXPLAYERS=100 \
 	FIXEDMAXTICKRATE=64 \
 	RANDOM=NONE
-
-# Switch to user
-USER ${USER}
 
 WORKDIR ${HOMEDIR}
 

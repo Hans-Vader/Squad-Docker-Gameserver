@@ -37,11 +37,14 @@ Running using a bind mount for data persistence on container recreation:
 $ mkdir -p $(pwd)/squad-data
 $ docker run -d --net=host -v $(pwd)/squad-data:/home/steam/squad-dedicated/ --name=squad-dedicated squad:trixie
 ```
-Create the directory yourself — if dockerd has to create it, it lands root-owned and the container cannot write. Its owner has to match the image's `PUID`/`PGID` (1000:1000 by default, see above).
+Create the directory yourself — if dockerd has to create it, it lands root-owned and the container cannot write. Its owner has to match the image's `PUID`/`PGID` (1000:1000 by default). If your account is not uid 1000, either rebuild with the `--build-arg` command above, or hand the directory to the image's uid:
+```console
+$ sudo chown -R 1000:1000 $(pwd)/squad-data
+```
 
 Running multiple instances (iterate PORT, QUERYPORT, RCONPORT and BEACONPORT):<br/>
 ```console
-$ docker run -d --net=host -v /home/steam/squad-dedicated2/ -e PORT=7788 -e QUERYPORT=27166 -e RCONPORT=21115 -e BEACONPORT=15001 --name=squad-dedicated2 squad:trixie
+$ docker run -d --net=host -v /home/steam/squad-dedicated/ -e PORT=7788 -e QUERYPORT=27166 -e RCONPORT=21115 -e BEACONPORT=15001 --name=squad-dedicated2 squad:trixie
 ```
 
 **It's also recommended using "--cpuset-cpus=" to limit the game server to a specific core & thread.**<br/>
