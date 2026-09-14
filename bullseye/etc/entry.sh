@@ -36,7 +36,14 @@ else
 					+login anonymous \
 					+app_update "${STEAMAPPID}" \
 					+quit
-fi || { echo "steamcmd failed to update Squad after 3 attempts, aborting" >&2; exit 1; }
+fi || {
+	# An install whose build is old enough that Steam dropped its depot manifests can no
+	# longer update - every attempt aborts instantly with "state is 0x6", and validate does
+	# not recover it. Without the manifest the next start reinstalls from scratch.
+	echo "steamcmd failed to update Squad after 3 attempts, dropping appmanifest so the next start reinstalls" >&2
+	rm -f "${STEAMAPPDIR}/steamapps/appmanifest_"*.acf
+	exit 1
+}
 
 # Change rcon port on first launch, because the default config overwrites the commandline parameter (you can comment this out if it has done it's purpose)
 sed -i -e 's/Port=21114/'"Port=${RCONPORT}"'/g' "${STEAMAPPDIR}/SquadGame/ServerConfig/Rcon.cfg"
