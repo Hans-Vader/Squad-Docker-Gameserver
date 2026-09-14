@@ -15,12 +15,17 @@ run_steamcmd() {
 	return 1
 }
 
+# steamcmd's cached app info goes stale in a long-lived container, so app_update
+# reports "already up to date" and the server starts on the old build. Dropping it
+# costs ~2.5 MB refetch; deleting appmanifest instead would drop the record of the
+# installed depot manifests and force a full ~14 GB re-download.
+rm -f "${HOMEDIR}/Steam/appcache/appinfo.vdf"
+
 if [ -n "${STEAM_BETA_BRANCH}" ]
 then
 	echo "Loading Steam Beta Branch"
 	run_steamcmd +force_install_dir "${STEAMAPPDIR}" \
 					+login anonymous \
-					+app_info_update 1 \
 					+app_update "${STEAM_BETA_APP}" \
 					-beta "${STEAM_BETA_BRANCH}" \
 					-betapassword "${STEAM_BETA_PASSWORD}" \
@@ -29,7 +34,6 @@ else
 	echo "Loading Steam Release Branch"
 	run_steamcmd +force_install_dir "${STEAMAPPDIR}" \
 					+login anonymous \
-					+app_info_update 1 \
 					+app_update "${STEAMAPPID}" \
 					+quit
 fi || { echo "steamcmd failed to update Squad after 3 attempts, aborting" >&2; exit 1; }
